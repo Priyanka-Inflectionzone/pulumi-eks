@@ -425,10 +425,10 @@ const frontendService = new k8s.core.v1.Service("frontend-service", {
 // },{ provider: k8sProvider });
 
 const nginxIngress = new helm.Chart("nginx-ingress", {
-    chart: "nginx-ingress-controller",
+    chart: "ingress-nginx",
     namespace: appNamespace.metadata.name,
     fetchOpts:{
-        repo: "https://charts.bitnami.com/bitnami"
+        repo: "https://kubernetes.github.io"
     }
 }, { provider: k8sProvider });
 
