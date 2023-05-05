@@ -210,7 +210,7 @@ const cluster = new eks.Cluster("demo", {
         nodeSubnetIds: [publicSubnet.id, privateSubnet.id],
         desiredCapacity: 2,
         minSize: 2,
-        maxSize: 2,
+        maxSize: 3,
         instanceType: "t2.medium",
         amiType: "AL2_x86_64",
         nodeAssociatePublicIpAddress: true,
@@ -251,7 +251,7 @@ const frontendDeployment = new k8s.apps.v1.Deployment("frontend-deployment", {
             spec: {
                 containers: [{
                     name: "frontend-container",
-                    image: "priyankainflectionzone/frontend-app:3.0",
+                    image: "623865992637.dkr.ecr.ap-south-1.amazonaws.com/demo:latest",
                     env: [{
                             name: "BACKEND_API_URL",
                             value: "http://nodeapp:3456"
