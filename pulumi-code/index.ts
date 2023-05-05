@@ -428,7 +428,7 @@ const nginxIngress = new helm.Chart("nginx-ingress", {
     chart: "ingress-nginx",
     namespace: appNamespace.metadata.name,
     fetchOpts:{
-        repo: "https://kubernetes.github.io"
+        repo: "https://kubernetes.github.io/ingress-nginx"
     }
 }, { provider: k8sProvider });
 
@@ -443,6 +443,7 @@ const ingress = new k8s.networking.v1.Ingress("my-app-ingress", {
     spec: {
         rules: [
             {
+                host: "myapp.example1.com",
                 http: {
                     paths: [
                         {
