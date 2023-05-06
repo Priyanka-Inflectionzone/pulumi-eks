@@ -3,6 +3,7 @@ import * as aws from "@pulumi/aws";
 import * as eks from "@pulumi/eks";
 import * as k8s from "@pulumi/kubernetes";
 import * as helm from "@pulumi/kubernetes/helm/v3"
+import * as nginx from "@pulumi/kubernetes-ingress-nginx";
 
 // Create VPC
 const main = new aws.ec2.Vpc("dev-vpc", {
@@ -79,42 +80,25 @@ const privateRtAssociation = new aws.ec2.RouteTableAssociation("private-rt-assoc
     routeTableId: privateRt.id,
 });
 
-// const subnetGroup = new aws.rds.SubnetGroup("db-subnet-group", {
-//     subnetIds: [
-//         publicSubnet.id,
-//         privateSubnet.id,
-//     ],
-//     tags: {
-//         Name: "My DB subnet group",
-//     },
-// }); 
-
-
-// Create an RDS instance in the VPC
-// const rdsInstance = new aws.rds.Instance("rds-instance", {
-//     allocatedStorage: 20,
-//     engine: "mysql",
-//     engineVersion: "5.7",
-//     instanceClass: "db.t2.micro",
-//     dbName: "db",
-//     username: "admin",
-//     password: "password",
-//     dbSubnetGroupName: subnetGroup.name,
-//     skipFinalSnapshot: true,
-//     vpcSecurityGroupIds: [new aws.ec2.SecurityGroup("rds-sg", {
-//         vpcId: main.id,
-//         ingress: [{
-//             protocol: "tcp",
-//             fromPort: 3306,
-//             toPort: 3306,
-//             cidrBlocks: [main.cidrBlock],
-//         }],
-//     }).id],
-// });
-
-
 const eksSG = new aws.ec2.SecurityGroup("eks-sg", {
     vpcId: main.id,
+    ingress: [{
+        description: "Allow all traffic",
+        fromPort: 0,
+        toPort: 0,
+        protocol: "-1",
+        cidrBlocks: ["0.0.0.0/0"],
+    }],
+    egress: [{
+        fromPort: 0,
+        toPort: 0,
+        protocol: "-1",
+        cidrBlocks: ["0.0.0.0/0"],
+        ipv6CidrBlocks: ["::/0"],
+    }],
+    tags: {
+        Name: "eks-sg",
+    },
 })
 
 // Create IAM Role For EKS Cluster
@@ -284,155 +268,19 @@ const frontendService = new k8s.core.v1.Service("frontend-service", {
 }},
 { provider: k8sProvider});
 
-// const nginxDeployment = new k8s.apps.v1.Deployment("nginx-deployment", {
-//     metadata: {
-//         name: "nginx-deployment",
-//         labels: {
-//             app: "nginx-app"
-//         },
-//     },
-//     spec: {
-//         selector: {
-//             matchLabels: {
-//                 app: "nginx-app",
-//             },
-//         },
-//         replicas: 1,
-//         template: {
-//             metadata: {
-//                 labels: {
-//                     app: "nginx-app",
-//                 },
-//             },
-//             spec: {
-//                 containers: [{
-//                     name: "nginx-container",
-//                     image: "priyankainflectionzone/nginx:1.0",
-//                     }]
-//                 }
-//             }
-//         }
-//     },
-//     { provider: k8sProvider})
+// Ingress Controller
+const ctrl = new nginx.IngressController("myctrl", {
+    controller: {
+        publishService: {
+            enabled: true,
+        },
+    },
+    helmOptions: {
+        namespace: appNamespace.metadata.name,
+    },
+}, { provider: k8sProvider }); 
 
-
-// const nginxService = new k8s.core.v1.Service("nginx-service", {
-//     metadata:{
-//         name: "nginx",
-//     },
-//     spec: {
-//     type: "NodePort",
-//     ports: [{
-//         port: 80,
-//         protocol: "TCP",
-//         targetPort: 80,
-//         nodePort: 30080
-//         }],
-//     selector: {
-//         app: "nginx-app",
-//         },
-// }},
-// { provider: k8sProvider});
-
-// const networkPolicy2 = new k8s.networking.v1.NetworkPolicy("nginx-network-policy", {
-//     metadata: {
-//         name: "nginx-network-policy",
-//     },
-//     spec: {
-//         podSelector: {
-//             matchLabels: {
-//                 app: "frontend-app",
-//             },
-//         },
-//         policyTypes: ["Ingress"],
-//         ingress: [
-//             {
-//                 from: [
-//                     {
-//                         podSelector: {
-//                             matchLabels: {
-//                                 app: "nginx-app",
-//                             },
-//                         },
-//                     },
-//                 ],
-//             },
-//         ],
-//     },
-// },
-// { provider: k8sProvider});
-
-// const nginxIngressControllerDeployment = new k8s.apps.v1.Deployment("nginx-ingress-controller", {
-//     spec: {
-//         selector: {
-//             matchLabels: {
-//                 app: "nginx-ingress-controller"
-//             }
-//         },
-//         template: {
-//             metadata: {
-//                 labels: {
-//                     app: "nginx-ingress-controller"
-//                 }
-//             },
-//             spec: {
-//                 containers: [{
-//                     name: "nginx-ingress-controller",
-//                     image: "quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.26.1",
-//                     args: [
-//                         "/nginx-ingress-controller",
-//                         "--configmap=$(POD_NAMESPACE)/nginx-configuration",
-//                         "--tcp-services-configmap=$(POD_NAMESPACE)/tcp-services",
-//                         "--udp-services-configmap=$(POD_NAMESPACE)/udp-services",
-//                         "--annotations-prefix=nginx.ingress.kubernetes.io"
-//                     ],
-//                     env: [
-//                         {
-//                             name: "POD_NAME",
-//                             valueFrom: {
-//                                 fieldRef: {
-//                                     fieldPath: "metadata.name"
-//                                 }
-//                             }
-//                         },
-//                         {
-//                             name: "POD_NAMESPACE",
-//                             valueFrom: {
-//                                 fieldRef: {
-//                                     fieldPath: "metadata.namespace"
-//                                 }
-//                             }
-//                             }
-//                     ],
-//                     ports: [{
-//                         containerPort: 80
-//                     }]
-//                 }]
-//             }
-//         }
-//     }
-// },{ provider: k8sProvider });
-
-// // NGINX Ingress Controller service.
-// const nginxIngressControllerService = new k8s.core.v1.Service("nginx-ingress-controller", {
-//     spec: {
-//         type: "LoadBalancer",
-//         selector: nginxIngressControllerDeployment.spec.template.metadata.labels,
-//         ports: [{
-//             port: 80
-//         }]
-//     }
-// },{ provider: k8sProvider });
-
-const nginxIngress = new helm.Chart("nginx-ingress", {
-    chart: "ingress-nginx",
-    namespace: appNamespace.metadata.name,
-    fetchOpts:{
-        repo: "https://kubernetes.github.io/ingress-nginx"
-    }
-}, { provider: k8sProvider });
-
-
+// NGINX Ingress
 const ingress = new k8s.networking.v1.Ingress("my-app-ingress", {
     metadata: {
         namespace: appNamespace.metadata.name,
@@ -441,9 +289,10 @@ const ingress = new k8s.networking.v1.Ingress("my-app-ingress", {
         },
     },
     spec: {
+
         rules: [
             {
-                host: "myapp.example1.com",
+                // host: "app.deft-source.com",
                 http: {
                     paths: [
                         {
@@ -463,5 +312,5 @@ const ingress = new k8s.networking.v1.Ingress("my-app-ingress", {
             },
         ],
     },
-}, { provider: k8sProvider });
+}, { provider:k8sProvider });
 
