@@ -284,12 +284,12 @@ const ctrl = new nginx.IngressController("myctrl", {
 const ingress = new k8s.networking.v1.Ingress("my-app-ingress", {
     metadata: {
         namespace: appNamespace.metadata.name,
-        annotations: {
-            "kubernetes.io/ingress.class": "nginx",
-        },
+        // annotations: {
+        //     "kubernetes.io/ingress.class": "nginx",
+        // },
     },
     spec: {
-
+        ingressClassName: "nginx",
         rules: [
             {
                 // host: "app.deft-source.com",
